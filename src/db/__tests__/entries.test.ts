@@ -63,6 +63,14 @@ describe('entries repository', () => {
     expect(result.map((e) => e.content)).toEqual(['昨天', '前天']);
   });
 
+  it('listAll 回傳全部事記，由新到舊', async () => {
+    await repo.create({ occurredAt: BASE - DAY, content: '昨天', mood: 2 });
+    await repo.create({ occurredAt: BASE, content: '今天', mood: 5 });
+    await repo.create({ occurredAt: BASE - 2 * DAY, content: '前天', mood: 3 });
+
+    expect((await repo.listAll()).map((e) => e.content)).toEqual(['今天', '昨天', '前天']);
+  });
+
   it('範圍內沒有資料時回傳空陣列', async () => {
     await repo.create({ occurredAt: BASE, content: '今天', mood: 3 });
     expect(await repo.listByRange(BASE + DAY, BASE + 2 * DAY)).toEqual([]);
