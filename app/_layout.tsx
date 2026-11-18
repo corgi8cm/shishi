@@ -39,6 +39,8 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="entry/new" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="entry/[id]" options={{ presentation: 'modal' }} />
       </Stack>
     </SQLiteProvider>
   );
