@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "拾事",
+    "slug": "shishi",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.github.corgi8cm.shishi"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F6F5F1",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "io.github.corgi8cm.shishi",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-sqlite",
+      "expo-font",
+      "expo-splash-screen"
+    ],
+    "scheme": "shishi",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
