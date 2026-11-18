@@ -29,7 +29,8 @@
       "expo-status-bar",
       "expo-sqlite",
       "expo-font",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "@react-native-community/datetimepicker"
     ],
     "scheme": "shishi",
     "experiments": {
