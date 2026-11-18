@@ -1,0 +1,128 @@
+name: Android build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 同一分支／tag 的建置依序執行，避免兩次推送同時改「最新測試版」。
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - run: npm ci
+
+      - name: Typecheck and test
+        run: |
+          npx tsc --noEmit
+          npm test -- --ci
+
+      # versionName 取自 app.json；versionCode 用 CI 執行次數，每次建置遞增，手機上可直接覆蓋安裝。
+      - name: Set version
+        id: version
+        run: |
+          VERSION_NAME=$(node -p "require('./app.json').expo.version")
+          VERSION_CODE=${{ github.run_number }}
+          node -e "
+            const fs = require('fs');
+            const a = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            a.expo.android.versionCode = Number(process.argv[1]);
+            fs.writeFileSync('app.json', JSON.stringify(a, null, 2) + '\n');
+          " "$VERSION_CODE"
+          echo "name=${VERSION_NAME}" >> "$GITHUB_OUTPUT"
+          echo "code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "版本 ${VERSION_NAME}（code ${VERSION_CODE}）"
+
+      - name: Generate Android project
+        env:
+          CI: 1
+        run: npx expo prebuild --platform android --no-install --clean
+
+      # Expo 產生的專案會用 android/app/debug.keystore（別名 androiddebugkey、密碼 android）簽 release 版。
+      # 換成存在 repo secret 的固定 keystore，每次建置簽章相同，手機上可以直接覆蓋安裝。
+      - name: Install signing keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/debug.keystore
+          else
+            echo "::warning::ANDROID_DEBUG_KEYSTORE_BASE64 未設定，使用 Expo 預設的公開 debug 簽章，產出的 APK 無法覆蓋安裝正式建置"
+          fi
+
+      # 用 release 建置：JS 會打包進 APK，不需要電腦上的開發伺服器也能執行。
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Collect APK
+        id: apk
+        run: |
+          mkdir -p build
+          APK="build/shishi-v${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$APK"
+          test -s "$APK"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          ls -la build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: shishi-v${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}-apk
+          path: build/*.apk
+          retention-days: 30
+
+      # main 的每次建置：覆蓋固定的「最新測試版」預發布（tag: latest）。
+      - name: Publish latest test build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest build/*.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "最新測試版 v${{ steps.version.outputs.name }}（build ${{ steps.version.outputs.code }}）" \
+            --notes "main 分支最新建置的 APK，每次推送都會更新。
+
+          - 版本：v${{ steps.version.outputs.name }}（version code ${{ steps.version.outputs.code }}）
+          - Commit：${GITHUB_SHA::7}
+          - 下載下方 Assets 裡的 APK，直接在手機上安裝。"
+
+      # 推 v* tag：建立正式版本的 Release。
+      - name: Publish version release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" build/*.apk --clobber
+          else
+            gh release create "$TAG" build/*.apk --title "$TAG" --generate-notes
+          fi
