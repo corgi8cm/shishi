@@ -101,6 +101,15 @@ export function createEntriesRepository(db: Database, deps: RepositoryDeps) {
       return rows.map(toEntry);
     },
 
+    /** 全部事記，依發生時間由新到舊。 */
+    async listAll(): Promise<Entry[]> {
+      const rows = await db.getAllAsync<EntryRow>(
+        `SELECT ${COLUMNS} FROM entries ORDER BY occurred_at DESC, created_at DESC`,
+        [],
+      );
+      return rows.map(toEntry);
+    },
+
     async count(): Promise<number> {
       const row = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM entries', []);
       return row?.n ?? 0;

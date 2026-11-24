@@ -5,6 +5,11 @@ export const colors = {
   textSecondary: '#5F6670',
   divider: '#E4E2DC',
   primary: '#2C6E8F',
+  primaryDark: '#1F5570',
+  primaryTint: '#E8F0F4',
+  moodChoiceIdle: '#EFEDE8',
+  emptyDot: '#E4E2DC',
+  danger: '#B3261E',
 } as const;
 
 export type Mood = 1 | 2 | 3 | 4 | 5;
@@ -19,6 +24,16 @@ export const moodColors: Record<Mood, string> = {
   4: '#E3A455',
   5: '#D9682E',
 };
+
+export const moodLabels: Record<Mood, string> = {
+  1: '很糟',
+  2: '不太好',
+  3: '普通',
+  4: '不錯',
+  5: '很棒',
+};
+
+export const MOODS: readonly Mood[] = [1, 2, 3, 4, 5];
 
 export const fonts = {
   regular: 'NotoSansTC_400Regular',
