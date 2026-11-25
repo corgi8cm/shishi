@@ -78,7 +78,8 @@ jobs:
       # 用 release 建置：JS 會打包進 APK，不需要電腦上的開發伺服器也能執行。
       - name: Build APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        # 只編 arm64-v8a：近年 Android 手機都是這個架構，APK 可小一半以上。
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
       - name: Collect APK
         id: apk
